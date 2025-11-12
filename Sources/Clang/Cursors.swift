@@ -154,7 +154,7 @@ public struct EnumDecl: ClangCursorBacked {
 
     /// Retrieves an array of all the constants as part of this enum.
     public func constants() -> [EnumConstantDecl] {
-        return children() as! [EnumConstantDecl]
+        return children().compactMap { $0 as? EnumConstantDecl }
     }
 
     /// Retrieve the integer type of an enum declaration.
