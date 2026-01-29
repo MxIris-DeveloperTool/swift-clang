@@ -5,7 +5,7 @@ import WinSDK
 
 // MARK: - Shared Types & Functions
 
-struct DynamicLinkLibrary {
+struct DynamicLinkLibrary: @unchecked Sendable {
 #if os(Windows)
     typealias Handle = HMODULE?
 #else

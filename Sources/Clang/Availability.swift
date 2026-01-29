@@ -1,7 +1,7 @@
 import CclangWrapper
 
 /// Describes the availability of a given declaration for each platform.
-public struct Availability {
+public struct Availability: Sendable {
     /// Whether this declaration is unconditionally deprecated for all platforms.
     public let alwaysDeprecated: Bool
 
@@ -22,7 +22,7 @@ public struct Availability {
 }
 
 /// Describes a version number of the form `<major>.<minor>.<subminor>`.
-public struct Version {
+public struct Version: Sendable {
     /// The major version number, e.g., the '10' in '10.7.3'.
     public let major: Int
 
@@ -61,7 +61,7 @@ public struct Version {
 /// Describes the availability of a given entity on a particular
 /// platform, e.g., a particular class might
 /// only be available on Mac OS 10.7 or newer.
-public struct PlatformAvailability {
+public struct PlatformAvailability: Sendable {
     /// A string that describes the platform for which this structure
     /// provides availability information.
     public let platform: String

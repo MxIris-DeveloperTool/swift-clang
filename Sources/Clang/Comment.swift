@@ -93,7 +93,7 @@ public struct InlineCommandComment: Comment {
 /// ```
 /// Would have 1 attribute, with a name `"href"`, and value
 /// `"https://example.org"`
-public struct HTMLAttribute {
+public struct HTMLAttribute: Sendable {
     /// The name of the attribute, which comes before the `=`.
     public let name: String
 
@@ -170,7 +170,7 @@ public struct BlockCommandComment: Comment {
 /// caller. An `.out` argument is usually a pointer and is meant to be filled
 /// by the caller, usually to return multiple pieces of data from a function.
 /// An `.inout` argument is meant to be read and written out to by the caller.
-public enum ParamPassDirection {
+public enum ParamPassDirection: Sendable {
     /// The parameter is an input parameter.
     case `in`
 
@@ -180,12 +180,12 @@ public enum ParamPassDirection {
     /// The parameter is an input and output parameter.
     case `inout`
 
-    init(clang: CXCommentParamPassDirection) {
+    init?(clang: CXCommentParamPassDirection) {
         switch clang {
         case CXCommentParamPassDirection_In: self = .in
         case CXCommentParamPassDirection_Out: self = .out
         case CXCommentParamPassDirection_InOut: self = .inout
-        default: fatalError("invalud CXCommentParamPassDirection: \(clang)")
+        default: return nil
         }
     }
 }
@@ -206,7 +206,14 @@ public struct ParamCommandComment: Comment {
 
     /// The direction this parameter is passed by.
     public var passDirection: ParamPassDirection {
-        return ParamPassDirection(clang: clang_ParamCommandComment_getDirection(clang))
+        get throws {
+            guard let direction = ParamPassDirection(
+                clang: clang_ParamCommandComment_getDirection(clang)
+            ) else {
+                throw ClangError.unexpectedValue
+            }
+            return direction
+        }
     }
 
     /// Retrieves the name of the declared parameter.
@@ -319,6 +326,6 @@ internal func convertComment(_ clang: CXComment) -> Comment? {
     case CXComment_VerbatimBlockLine: return VerbatimBlockLineComment(clang: clang)
     case CXComment_VerbatimLine: return VerbatimLineComment(clang: clang)
     case CXComment_FullComment: return FullComment(clang: clang)
-    default: fatalError("invalid kind \(clang)")
+    default: return nil
     }
 }

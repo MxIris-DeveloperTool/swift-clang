@@ -23,8 +23,11 @@ public class Index {
     ///                        error while parsing any declarations in this index.
     public init(excludeDeclarationsFromPCH: Bool = true,
                 displayDiagnostics: Bool = true) {
-        self.clang = clang_createIndex(excludeDeclarationsFromPCH.asClang(),
-                                       displayDiagnostics.asClang())!
+        guard let index = clang_createIndex(excludeDeclarationsFromPCH.asClang(),
+                                              displayDiagnostics.asClang()) else {
+            preconditionFailure("clang_createIndex returned nil")
+        }
+        self.clang = index
     }
 
     /// The general options associated with an Index.
@@ -43,7 +46,7 @@ public class Index {
 }
 
 /// Global options used to inform the Index.
-public struct GlobalOptions: OptionSet {
+public struct GlobalOptions: OptionSet, Sendable {
     public typealias RawValue = CXGlobalOptFlags.RawValue
     public let rawValue: RawValue
 
@@ -77,7 +80,7 @@ public struct GlobalOptions: OptionSet {
 }
 
 /// Options for used for indexing actions.
-public struct IndexOptFlags: OptionSet {
+public struct IndexOptFlags: OptionSet, Sendable {
     public typealias RawValue = CXIndexOptFlags.RawValue
     public let rawValue: RawValue
 
@@ -125,7 +128,10 @@ public class IndexAction {
     /// Initializes an indexion action.
     /// - parameter index: An Index.
     public init(index: Index = Index()) {
-        self.clang = clang_IndexAction_create(index.clang)!
+        guard let action = clang_IndexAction_create(index.clang) else {
+            preconditionFailure("clang_IndexAction_create returned nil")
+        }
+        self.clang = action
     }
 
     deinit {

@@ -1,7 +1,7 @@
 import CclangWrapper
 
 /// Describes the severity of a particular diagnostic.
-public enum DiagnosticSeverity {
+public enum DiagnosticSeverity: Sendable {
     /// A diagnostic that has been suppressed, e.g., by a command-line option.
     case ignored
 
@@ -19,21 +19,21 @@ public enum DiagnosticSeverity {
     /// parser recovery is unlikely to produce useful results.
     case fatal
 
-    init(clang: CXDiagnosticSeverity) {
+    init?(clang: CXDiagnosticSeverity) {
         switch clang {
         case CXDiagnostic_Ignored: self = .ignored
         case CXDiagnostic_Note: self = .note
         case CXDiagnostic_Warning: self = .warning
         case CXDiagnostic_Error: self = .error
         case CXDiagnostic_Fatal: self = .fatal
-        default: fatalError("invalid CXDiagnosticSeverity \(clang)")
+        default: return nil
         }
     }
 }
 
 /// Describes the kind of error that occurred (if any) in a call to
 /// loadDiagnostics
-public enum LoadDiagError: Error {
+public enum LoadDiagError: Error, Sendable {
     /// Indicates that an unknown error occurred while attempting to deserialize
     /// diagnostics.
     case unknown
@@ -51,7 +51,7 @@ public enum LoadDiagError: Error {
         case CXLoadDiag_Unknown: self = .unknown
         case CXLoadDiag_CannotLoad: self = .cannotLoad
         case CXLoadDiag_InvalidFile: self = .invalidFile
-        default: fatalError("invalid CXLoadDiag_Error \(clang)")
+        default: return nil
         }
     }
 }
@@ -59,7 +59,7 @@ public enum LoadDiagError: Error {
 /// Options to control the display of diagnostics.
 /// The values in this enum are meant to be combined to customize the
 /// behavior of `clang_formatDiagnostic().`
-public struct DiagnosticDisplayOptions: OptionSet {
+public struct DiagnosticDisplayOptions: OptionSet, Sendable {
     public typealias RawValue = CXDiagnosticDisplayOptions.RawValue
     public let rawValue: RawValue
     /// Creates a new DiagnosticDisplayOptions from a raw integer value.
@@ -116,7 +116,7 @@ public struct DiagnosticDisplayOptions: OptionSet {
 }
 
 /// Encapusulates necessary information for appyling a fix it.
-public struct FixIt {
+public struct FixIt: Sendable {
     /// A string containing text that should replace the source code indicated by
     /// `replacementRange`.
     let fixit: String
@@ -136,9 +136,14 @@ public class Diagnostic: CustomStringConvertible {
 
     /// Severity of the diagnostic.
     public var severity: DiagnosticSeverity {
-        return DiagnosticSeverity(
-            clang: clang_getDiagnosticSeverity(clang)
-        )
+        get throws {
+            guard let severity = DiagnosticSeverity(
+                clang: clang_getDiagnosticSeverity(clang)
+            ) else {
+                throw ClangError.unexpectedValue
+            }
+            return severity
+        }
     }
 
     /// Diagnostic spelling.

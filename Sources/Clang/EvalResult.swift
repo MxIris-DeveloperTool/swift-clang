@@ -1,7 +1,7 @@
 import CclangWrapper
 
 /// Represents the result of evaluating a CXCursor
-public enum EvalResult {
+public enum EvalResult: Sendable {
     /// The cursor evaluated to an integer value.
     case int(Int)
 
@@ -32,14 +32,14 @@ func convertEvalResult(_ clang: CXEvalResult) -> EvalResult? {
     case CXEval_Int: return .int(Int(clang_EvalResult_getAsInt(clang)))
     case CXEval_Float: return .float(clang_EvalResult_getAsDouble(clang))
     case CXEval_ObjCStrLiteral:
-        let string = String(cString: clang_EvalResult_getAsStr(clang)!)
-        return .objcStringLiteral(string)
+        guard let cStr = clang_EvalResult_getAsStr(clang) else { return .other }
+        return .objcStringLiteral(String(cString: cStr))
     case CXEval_StrLiteral:
-        let string = String(cString: clang_EvalResult_getAsStr(clang)!)
-        return .stringLiteral(string)
+        guard let cStr = clang_EvalResult_getAsStr(clang) else { return .other }
+        return .stringLiteral(String(cString: cStr))
     case CXEval_CFStr:
-        let string = String(cString: clang_EvalResult_getAsStr(clang)!)
-        return .cfStringLiteral(string)
+        guard let cStr = clang_EvalResult_getAsStr(clang) else { return .other }
+        return .cfStringLiteral(String(cString: cStr))
     case CXEval_Other: return .other
     case CXEval_UnExposed: return .unexposed
     default: return nil

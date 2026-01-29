@@ -1,8 +1,8 @@
-import CclangWrapper
+@preconcurrency import CclangWrapper
 import Foundation
 
 /// Represents a file ID that's unique to each file in a translation unit.
-public struct UniqueFileID: Hashable {
+public struct UniqueFileID: Hashable, Sendable {
     let clang: CXFileUniqueID
 
     /// Determines if two unique file IDs are equal.
@@ -19,7 +19,7 @@ public struct UniqueFileID: Hashable {
 }
 
 /// A particular source file that is part of a translation unit.
-public struct File: Hashable {
+public struct File: Hashable, @unchecked Sendable {
     let clang: CXFile
 
     /// Retrieve the complete file and path name of the given file.
@@ -65,10 +65,10 @@ public class UnsavedFile {
     var clang: CXUnsavedFile
 
     /// A C String that represents the filename.
-    private var filenamePtr: UnsafeMutablePointer<CChar>!
+    private var filenamePtr: UnsafeMutablePointer<CChar>?
 
     /// A C String that represents the contents buffer.
-    private var contentsPtr: UnsafeMutablePointer<CChar>!
+    private var contentsPtr: UnsafeMutablePointer<CChar>?
 
     /// Creates an Unsaved file with empty filename, and content.
     public convenience init() {
@@ -88,6 +88,7 @@ public class UnsavedFile {
     /// This file must already exist in the file system.
     public var filename: String {
         get {
+            guard let filenamePtr else { return "" }
             return String(cString: filenamePtr)
         }
         set {
@@ -100,13 +101,14 @@ public class UnsavedFile {
     /// A buffer containing the unsaved contents of this file.
     public var contents: String {
         get {
+            guard let contentsPtr else { return "" }
             return String(cString: contentsPtr)
         }
         set {
             disposeCStr(contentsPtr)
 
             contentsPtr = makeCStrFrom(string: newValue)
-            guard contentsPtr != nil else {
+            guard let contentsPtr else {
                 clang.Contents = nil
                 clang.Length = 0
                 return

@@ -1,7 +1,7 @@
 import CclangWrapper
 
 /// Represents the errors that can be thrown by libclang.
-public enum ClangError: Error {
+public enum ClangError: Error, Sendable {
     /// Clang had an internal failure while processing the request.
     case failure
 
@@ -13,6 +13,9 @@ public enum ClangError: Error {
 
     /// Clang failed to parse an AST from the provided source file(s).
     case astRead
+
+    /// An unexpected or unrecognized value was returned by libclang.
+    case unexpectedValue
 
     /// Constructs a ClangError from the provided CXErrorCode
     init?(clang: CXErrorCode) {
@@ -28,7 +31,7 @@ public enum ClangError: Error {
 
 /// Represents the errors that can be thrown by libclang when saving a
 /// `TranslationUnit`.
-public enum ClangSaveError: Error {
+public enum ClangSaveError: Error, Sendable {
     /// Indicates that an unknown error occurred while attempting to save the
     /// file.
     /// This error typically indicates that file I/O failed when attempting to

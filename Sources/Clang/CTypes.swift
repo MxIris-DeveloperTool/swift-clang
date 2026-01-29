@@ -319,6 +319,6 @@ func convertType(_ clang: CXType) -> CType? {
     case CXType_MemberPointer: return MemberPointerType(clang: clang)
     case CXType_Auto: return AutoType(clang: clang)
     case CXType_Elaborated: return ElaboratedType(clang: clang)
-    default: fatalError("invalid CXTypeKind \(clang)")
+    default: return nil
     }
 }

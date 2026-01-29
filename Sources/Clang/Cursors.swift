@@ -159,7 +159,12 @@ public struct EnumDecl: ClangCursorBacked {
 
     /// Retrieve the integer type of an enum declaration.
     public var integerType: CType {
-        return convertType(clang_getEnumDeclIntegerType(clang))!
+        get throws {
+            guard let type = convertType(clang_getEnumDeclIntegerType(clang)) else {
+                throw ClangError.unexpectedValue
+            }
+            return type
+        }
     }
 }
 
@@ -1891,6 +1896,6 @@ func convertCursor(_ clang: CXCursor) -> Cursor? {
     case CXCursor_RequiresExpr: return RequiresExpr(clang: clang)
     case CXCursor_WarnUnusedAttr: return WarnUnusedAttr(clang: clang)
     case CXCursor_WarnUnusedResultAttr: return WarnUnusedResultAttr(clang: clang)
-    default: fatalError("invalid CXCursorKind \(clang)")
+    default: return nil
     }
 }

@@ -6,7 +6,7 @@ public protocol CType: CustomStringConvertible {
     func asClang() -> CXType
 }
 
-public enum TypeLayoutError: Error {
+public enum TypeLayoutError: Error, Sendable {
     /// The type was invalid
     case invalid
 
@@ -122,7 +122,12 @@ extension CType {
     /// type with all the "sugar" removed. For example, if 'T' is a typedef for
     /// 'int', the canonical type for 'T' would be 'int'.
     public var canonicalType: CType {
-        return convertType(clang_getCanonicalType(asClang()))!
+        get throws {
+            guard let type = convertType(clang_getCanonicalType(asClang())) else {
+                throw ClangError.unexpectedValue
+            }
+            return type
+        }
     }
 
     /// Retrieve the ref-qualifier kind of a function or method.
@@ -135,7 +140,7 @@ extension CType {
 
 /// Represents the qualifier for C++ methods that determines how the
 /// implicit `this` parameter is used in the method.
-public enum RefQualifier {
+public enum RefQualifier: Sendable {
     /// An l-value ref qualifier (&)
     case lvalue
 

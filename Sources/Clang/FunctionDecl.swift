@@ -44,7 +44,7 @@ public enum CallingConvention {
 }
 
 /// Property attributes for an Objective-C @property declaration.
-public struct ObjCPropertyAttributes: OptionSet {
+public struct ObjCPropertyAttributes: OptionSet, Sendable {
     public typealias RawValue = CXObjCPropertyAttrKind.RawValue
     public let rawValue: RawValue
 

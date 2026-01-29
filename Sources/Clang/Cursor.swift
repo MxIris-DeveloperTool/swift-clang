@@ -26,7 +26,7 @@ public protocol Cursor: CustomStringConvertible {
 
 /// Used as the return type for `Cursor.visitChildren`. Describes what to do
 /// after each iteration of a child visitation.
-public enum ChildVisitResult {
+public enum ChildVisitResult: Sendable {
     /// Stop visitation.
     case abort
 
@@ -195,7 +195,10 @@ extension Cursor {
 
     /// Returns the translation unit that a cursor originated from.
     public var translationUnit: TranslationUnit {
-        return TranslationUnit(clang: clang_Cursor_getTranslationUnit(asClang())!, owned: false)
+        guard let tu = clang_Cursor_getTranslationUnit(asClang()) else {
+            preconditionFailure("Cursor must have an associated translation unit")
+        }
+        return TranslationUnit(clang: tu, owned: false)
     }
 
     /// Retrieves all the children of the provided cursor.
@@ -403,7 +406,7 @@ extension Cursor {
 }
 
 /// Describes the visibility of a given symbol at link time.
-public enum VisibilityKind {
+public enum VisibilityKind: Sendable {
     /// Symbol not seen by the linker.
     case hidden
     /// Symbol seen by the linker but resolves to a symbol inside this object.
@@ -422,7 +425,7 @@ public enum VisibilityKind {
 }
 
 /// Describes the kind of a template argument.
-public enum TemplateArgumentKind {
+public enum TemplateArgumentKind: Sendable {
     /// Represents an empty template argument, e.g., one that has not been
     /// deduced.
     case null
@@ -473,13 +476,13 @@ public enum TemplateArgumentKind {
         case CXTemplateArgumentKind_Expression: self = .expression
         case CXTemplateArgumentKind_Pack: self = .pack
         case CXTemplateArgumentKind_Invalid: return nil
-        default: fatalError("invalid CXTemplateArgumentKind \(clang)")
+        default: return nil
         }
     }
 }
 
 /// Represents the C++ access control level to a base class for a cursor.
-public enum CXXAccessSpecifierKind {
+public enum CXXAccessSpecifierKind: Sendable {
     /// The declaration is marked `public`.
     case `public`
 
@@ -495,13 +498,13 @@ public enum CXXAccessSpecifierKind {
         case CX_CXXPublic: self = .public
         case CX_CXXProtected: self = .protected
         case CX_CXXPrivate: self = .private
-        default: fatalError("invalid CX_CXXAccessSpecifier \(clang)")
+        default: return nil
         }
     }
 }
 
 /// Represents the storage classes as declared in the source.
-public enum StorageClass {
+public enum StorageClass: Sendable {
     /// No storage class was declared for the declaration.
     case none
 
@@ -535,7 +538,7 @@ public enum StorageClass {
         case CX_SC_OpenCLWorkGroupLocal: self = .openCLWorkGroupLocal
         case CX_SC_Auto: self = .auto
         case CX_SC_Register: self = .register
-        default: fatalError("invalid CX_StorageClass \(clang)")
+        default: return nil
         }
     }
 }

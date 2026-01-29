@@ -6,7 +6,7 @@ import Foundation
 /// The enumerators in this enumeration type are meant to be bitwise ORed
 /// together to specify which options should be used when constructing the
 /// translation unit.
-public struct TranslationUnitOptions: OptionSet {
+public struct TranslationUnitOptions: OptionSet, Sendable {
     public typealias RawValue = CXTranslationUnit_Flags.RawValue
     public let rawValue: RawValue
 
@@ -107,7 +107,7 @@ public struct TranslationUnitOptions: OptionSet {
 /// The enumerators in this enumeration type are meant to be bitwise ORed
 /// together to specify which options should be used when saving the translation
 /// unit.
-public struct TranslationUnitSaveOptions: OptionSet {
+public struct TranslationUnitSaveOptions: OptionSet, Sendable {
     public typealias RawValue = CXSaveTranslationUnit_Flags.RawValue
     public let rawValue: RawValue
 
@@ -158,7 +158,10 @@ public class TranslationUnit {
             if let clangErr = ClangError(clang: err) {
                 throw clangErr
             }
-            return unit!
+            guard let unit else {
+                throw ClangError.failure
+            }
+            return unit
         }
         self.owned = true
     }
@@ -179,32 +182,11 @@ public class TranslationUnit {
                             index: Index = Index(),
                             commandLineArgs args: [String] = [],
                             options: TranslationUnitOptions = []) throws {
-        // Returns URL for temporary directory.
-        let temporaryDirectory = { () -> URL in
-            if #available(OSX 10.12, *) {
-                return FileManager.default.temporaryDirectory
-            } else {
-                return URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            }
-        }
-
-        // Returns correct extension depending on the language passed.
-        let extensionFromLang = { (lang: Language) -> String in
-            switch lang {
-            case .c:
-                return ".c"
-            case .cPlusPlus:
-                return ".cc"
-            case .objectiveC:
-                return ".m"
-            }
-        }
-
         // Create random file in temporary directory with `clangSource` as content.
         let randomFileName =
-            UUID().uuidString.lowercased() + extensionFromLang(language)
+            UUID().uuidString.lowercased() + language.fileExtension
         let temporaryClangFileURL =
-            temporaryDirectory().appendingPathComponent(randomFileName)
+            FileManager.default.temporaryDirectory.appendingPathComponent(randomFileName)
         FileManager.default.createFile(atPath: temporaryClangFileURL.path,
                                        contents: clangSource.data(using: .utf8))
         defer {
@@ -234,7 +216,10 @@ public class TranslationUnit {
             throw clangErr
         }
 
-        self.clang = unit!
+        guard let unit else {
+            throw ClangError.failure
+        }
+        self.clang = unit
         self.owned = true
     }
 
@@ -242,7 +227,10 @@ public class TranslationUnit {
     /// The translation unit cursor can be used to start traversing the various
     /// declarations within the given translation unit.
     public var cursor: Cursor {
-        return convertCursor(clang_getTranslationUnitCursor(clang))!
+        guard let cursor = convertCursor(clang_getTranslationUnitCursor(clang)) else {
+            preconditionFailure("Translation unit cursor must not be nil")
+        }
+        return cursor
     }
 
     /// Retrieves diagnostics attached with the given translation unit.
@@ -284,9 +272,11 @@ public class TranslationUnit {
     /// is inspecting the inclusions in the PCH file itself).
     public func visitInclusion(_ perInclusionCallback: InclusionVisitor) {
         let visiter: CXInclusionVisitor = { cxfile, location, depth, data in
-            let callback = Unmanaged<Box<InclusionVisitor>>.fromOpaque(data!).takeUnretainedValue().value
-            let file = File(clang: cxfile!)
-            let cxstack = UnsafeMutableBufferPointer(start: location!, count: Int(depth))
+            guard let data, let cxfile else { return }
+            let callback = Unmanaged<Box<InclusionVisitor>>.fromOpaque(data).takeUnretainedValue().value
+            let file = File(clang: cxfile)
+            guard let location else { return }
+            let cxstack = UnsafeMutableBufferPointer(start: location, count: Int(depth))
             let stack = AnyRandomAccessCollection(cxstack.lazy.map(SourceLocation.init))
             callback(file, stack)
         }
@@ -326,7 +316,9 @@ public class TranslationUnit {
         guard let tokensPtr = tokensPtrOpt else { return [] }
         var tokens = [Token]()
         for i in 0 ..< Int(numTokens) {
-            tokens.append(convertToken(tokensPtr[i]))
+            if let token = try? convertToken(tokensPtr[i]) {
+                tokens.append(token)
+            }
         }
         clang_disposeTokens(clang, tokensPtr, numTokens)
         return tokens
