@@ -1,10 +1,19 @@
-@preconcurrency import CclangWrapper
+@preconcurrency package import CclangWrapper
 
 import Foundation
 
 /// Represents a C, C++, or Objective-C token.
 public protocol Token {
+}
+
+protocol ClangTokenBacked {
     var clang: CXToken { get }
+}
+
+extension Token {
+    var clangToken: CXToken {
+        (self as! ClangTokenBacked).clang
+    }
 }
 
 extension Token {
@@ -12,7 +21,7 @@ extension Token {
     /// The spelling of a token is the textual representation of that token,
     /// e.g., the text of an identifier or keyword.
     public func spelling(in translationUnit: TranslationUnit) -> String {
-        return clang_getTokenSpelling(translationUnit.clang, clang).asSwift()
+        return clang_getTokenSpelling(translationUnit.clang, clangToken).asSwift()
     }
 
     /// Retrieve the source location of the given token.
@@ -20,7 +29,7 @@ extension Token {
     ///                          for this token.
     public func location(in translationUnit: TranslationUnit) -> SourceLocation {
         return SourceLocation(clang: clang_getTokenLocation(translationUnit.clang,
-                                                            clang))
+                                                            clangToken))
     }
 
     /// Retrieve a source range that covers the given token.
@@ -28,38 +37,33 @@ extension Token {
     ///                          for this token.
     public func range(in translationUnit: TranslationUnit) -> SourceRange {
         return SourceRange(clang: clang_getTokenExtent(translationUnit.clang,
-                                                       clang))
-    }
-
-    /// Returns the underlying CXToken value.
-    public func asClang() -> CXToken {
-        return clang
+                                                       clangToken))
     }
 }
 
 /// A token that contains some kind of punctuation.
-public struct PunctuationToken: Token {
-    public let clang: CXToken
+public struct PunctuationToken: Token, ClangTokenBacked {
+    package let clang: CXToken
 }
 
 /// A language keyword.
-public struct KeywordToken: Token {
-    public let clang: CXToken
+public struct KeywordToken: Token, ClangTokenBacked {
+    package let clang: CXToken
 }
 
 /// An identifier (that is not a keyword).
-public struct IdentifierToken: Token {
-    public let clang: CXToken
+public struct IdentifierToken: Token, ClangTokenBacked {
+    package let clang: CXToken
 }
 
 /// A numeric, string, or character literal.
-public struct LiteralToken: Token {
-    public let clang: CXToken
+public struct LiteralToken: Token, ClangTokenBacked {
+    package let clang: CXToken
 }
 
 /// A comment.
-public struct CommentToken: Token {
-    public let clang: CXToken
+public struct CommentToken: Token, ClangTokenBacked {
+    package let clang: CXToken
 }
 
 /// Converts a CXToken to a Token.
@@ -157,11 +161,6 @@ public struct SourceLocation: Sendable {
     public var isFromMainFile: Bool {
         return clang_Location_isFromMainFile(clang) != 0
     }
-
-    /// Returns the underlying CXSourceLocation value.
-    public func asClang() -> CXSourceLocation {
-        return clang
-    }
 }
 
 /// Represents a half-open character range in the source code.
@@ -194,10 +193,5 @@ public struct SourceRange: Sendable {
     /// source range.
     public var end: SourceLocation {
         return SourceLocation(clang: clang_getRangeEnd(clang))
-    }
-
-    /// Returns the underlying CXSourceRange value.
-    public func asClang() -> CXSourceRange {
-        return clang
     }
 }

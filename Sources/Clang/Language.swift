@@ -1,4 +1,4 @@
-import CclangWrapper
+internal import CclangWrapper
 
 /// The "language" a given cursor is written in.
 public enum Language: Sendable {

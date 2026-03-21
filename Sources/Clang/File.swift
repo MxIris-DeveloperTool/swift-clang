@@ -1,4 +1,4 @@
-@preconcurrency import CclangWrapper
+@preconcurrency internal import CclangWrapper
 import Foundation
 
 /// Represents a file ID that's unique to each file in a translation unit.

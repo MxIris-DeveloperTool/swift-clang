@@ -1,8 +1,8 @@
-import CclangWrapper
+internal import CclangWrapper
 
 // MARK: Special Types
 
-public struct RecordType: ClangTypeBacked {
+public struct RecordType: CType, ClangTypeBacked {
     let clang: CXType
     /// Computes the offset of a named field in a record of the given type
     /// in bytes as it would be returned by __offsetof__ as per C++11[18.2p4]
@@ -16,7 +16,7 @@ public struct RecordType: ClangTypeBacked {
     ///     - `TypeLayoutError.invalidFieldName` if the field is not found in
     ///       the receiving type.
     public func offsetOf(fieldName: String) throws -> Int {
-        let val = clang_Type_getOffsetOf(asClang(), fieldName)
+        let val = clang_Type_getOffsetOf(clangType, fieldName)
         if let error = TypeLayoutError(clang: CXTypeLayoutError(rawValue: Int32(val))) {
             throw error
         }
@@ -28,7 +28,7 @@ public struct RecordType: ClangTypeBacked {
         let fields = Box([Cursor]())
         let fieldsRef = Unmanaged.passUnretained(fields)
         let opaque = fieldsRef.toOpaque()
-        _ = clang_Type_visitFields(asClang(), { child, opaque -> CXVisitorResult in
+        _ = clang_Type_visitFields(clangType, { child, opaque -> CXVisitorResult in
             let fieldsRef = Unmanaged<Box<[Cursor]>>.fromOpaque(opaque!)
             let fields = fieldsRef.takeUnretainedValue()
             if let cursor = convertCursor(child) {
@@ -43,131 +43,131 @@ public struct RecordType: ClangTypeBacked {
 // MARK: Standard Types
 
 /// A type whose specific kind is not exposed via this interface.
-public struct UnexposedType: ClangTypeBacked {
+public struct UnexposedType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct VoidType: ClangTypeBacked {
+public struct VoidType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct BoolType: ClangTypeBacked {
+public struct BoolType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct Char_UType: ClangTypeBacked {
+public struct Char_UType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct UCharType: ClangTypeBacked {
+public struct UCharType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct Char16Type: ClangTypeBacked {
+public struct Char16Type: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct Char32Type: ClangTypeBacked {
+public struct Char32Type: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct UShortType: ClangTypeBacked {
+public struct UShortType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct UIntType: ClangTypeBacked {
+public struct UIntType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ULongType: ClangTypeBacked {
+public struct ULongType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ULongLongType: ClangTypeBacked {
+public struct ULongLongType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct UInt128Type: ClangTypeBacked {
+public struct UInt128Type: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct Char_SType: ClangTypeBacked {
+public struct Char_SType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct SCharType: ClangTypeBacked {
+public struct SCharType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct WCharType: ClangTypeBacked {
+public struct WCharType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ShortType: ClangTypeBacked {
+public struct ShortType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct IntType: ClangTypeBacked {
+public struct IntType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct LongType: ClangTypeBacked {
+public struct LongType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct LongLongType: ClangTypeBacked {
+public struct LongLongType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct Int128Type: ClangTypeBacked {
+public struct Int128Type: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct FloatType: ClangTypeBacked {
+public struct FloatType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct DoubleType: ClangTypeBacked {
+public struct DoubleType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct LongDoubleType: ClangTypeBacked {
+public struct LongDoubleType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct NullPtrType: ClangTypeBacked {
+public struct NullPtrType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct OverloadType: ClangTypeBacked {
+public struct OverloadType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct DependentType: ClangTypeBacked {
+public struct DependentType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ObjCIdType: ClangTypeBacked {
+public struct ObjCIdType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ObjCClassType: ClangTypeBacked {
+public struct ObjCClassType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ObjCSelType: ClangTypeBacked {
+public struct ObjCSelType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct Float128Type: ClangTypeBacked {
+public struct Float128Type: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ComplexType: ClangTypeBacked {
+public struct ComplexType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct PointerType: ClangTypeBacked {
+public struct PointerType: CType, ClangTypeBacked {
     let clang: CXType
 
     public var pointee: CType? {
@@ -175,47 +175,47 @@ public struct PointerType: ClangTypeBacked {
     }
 }
 
-public struct BlockPointerType: ClangTypeBacked {
+public struct BlockPointerType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct LValueReferenceType: ClangTypeBacked {
+public struct LValueReferenceType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct RValueReferenceType: ClangTypeBacked {
+public struct RValueReferenceType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct EnumType: ClangTypeBacked {
+public struct EnumType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct TypedefType: ClangTypeBacked {
+public struct TypedefType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ObjCInterfaceType: ClangTypeBacked {
+public struct ObjCInterfaceType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ObjCTypeParam: ClangTypeBacked {
+public struct ObjCTypeParam: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ObjCObjectPointerType: ClangTypeBacked {
+public struct ObjCObjectPointerType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct FunctionNoProtoType: ClangTypeBacked {
+public struct FunctionNoProtoType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct FunctionProtoType: ClangTypeBacked {
+public struct FunctionProtoType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct ConstantArrayType: ClangTypeBacked {
+public struct ConstantArrayType: CType, ClangTypeBacked {
     let clang: CXType
 
     public var element: CType? {
@@ -227,19 +227,11 @@ public struct ConstantArrayType: ClangTypeBacked {
     }
 }
 
-public struct VectorType: ClangTypeBacked {
+public struct VectorType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct IncompleteArrayType: ClangTypeBacked {
-    let clang: CXType
-
-    public var element: CType? {
-        return convertType(clang_getArrayElementType(clang))
-    }
-}
-
-public struct VariableArrayType: ClangTypeBacked {
+public struct IncompleteArrayType: CType, ClangTypeBacked {
     let clang: CXType
 
     public var element: CType? {
@@ -247,20 +239,28 @@ public struct VariableArrayType: ClangTypeBacked {
     }
 }
 
-public struct DependentSizedArrayType: ClangTypeBacked {
+public struct VariableArrayType: CType, ClangTypeBacked {
+    let clang: CXType
+
+    public var element: CType? {
+        return convertType(clang_getArrayElementType(clang))
+    }
+}
+
+public struct DependentSizedArrayType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct MemberPointerType: ClangTypeBacked {
+public struct MemberPointerType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
-public struct AutoType: ClangTypeBacked {
+public struct AutoType: CType, ClangTypeBacked {
     let clang: CXType
 }
 
 /// Represents a type that was referred to using an elaborated type keyword.
-public struct ElaboratedType: ClangTypeBacked {
+public struct ElaboratedType: CType, ClangTypeBacked {
     let clang: CXType
 }
 

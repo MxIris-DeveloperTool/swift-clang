@@ -1,4 +1,4 @@
-import CclangWrapper
+internal import CclangWrapper
 
 /// Represents the result of evaluating a CXCursor
 public enum EvalResult: Sendable {

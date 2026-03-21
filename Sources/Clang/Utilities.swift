@@ -1,4 +1,4 @@
-import CclangWrapper
+internal import CclangWrapper
 import Foundation
 
 extension Bool {

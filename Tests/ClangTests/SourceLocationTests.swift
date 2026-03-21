@@ -76,8 +76,7 @@ struct SourceLocationTests {
     func locationAsClang() throws {
         let unit = try TranslationUnit(clangSource: "int x;", language: .c)
         let loc = unit.cursor.range.start
-        let clangLoc = loc.asClang()
-        let roundTrip = SourceLocation(clang: clangLoc)
+        let roundTrip = SourceLocation(clang: loc.clang)
         #expect(roundTrip.offset == loc.offset)
     }
 
@@ -85,8 +84,7 @@ struct SourceLocationTests {
     func rangeAsClang() throws {
         let unit = try TranslationUnit(clangSource: "int x;", language: .c)
         let range = unit.cursor.range
-        let clangRange = range.asClang()
-        let roundTrip = SourceRange(clang: clangRange)
+        let roundTrip = SourceRange(clang: range.clang)
         #expect(roundTrip.start.offset == range.start.offset)
         #expect(roundTrip.end.offset == range.end.offset)
     }

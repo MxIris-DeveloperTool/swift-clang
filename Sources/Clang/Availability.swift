@@ -1,4 +1,4 @@
-import CclangWrapper
+internal import CclangWrapper
 
 /// Describes the availability of a given declaration for each platform.
 public struct Availability: Sendable {

@@ -1,4 +1,4 @@
-import CclangWrapper
+package import CclangWrapper
 
 /// A cursor representing some element in the abstract syntax tree for a
 /// translation unit.
@@ -19,9 +19,6 @@ import CclangWrapper
 /// that resides at that location, allowing one to map from the source code into
 /// the AST.
 public protocol Cursor: CustomStringConvertible {
-    /// Converts this cursor value to a CXCursor value to be consumed by
-    /// libclang APIs
-    func asClang() -> CXCursor
 }
 
 /// Used as the return type for `Cursor.visitChildren`. Describes what to do
@@ -38,34 +35,42 @@ public enum ChildVisitResult: Sendable {
 }
 
 /// Represents a cursor type that is simply backed by a CXCursor
-internal protocol ClangCursorBacked: Cursor {
+internal protocol ClangCursorBacked {
     var clang: CXCursor { get }
 }
 
 extension ClangCursorBacked {
-    /// Returns the underlying CXCursor value
-    public func asClang() -> CXCursor {
+    func asClang() -> CXCursor {
         return clang
     }
 }
 
 extension CXCursor: @retroactive CustomStringConvertible {}
 extension CXCursor: Cursor {
-    /// Returns `self` unmodified.
-    public func asClang() -> CXCursor {
+    func asClang() -> CXCursor {
         return self
+    }
+}
+
+extension Cursor {
+    /// Internal accessor for the underlying CXCursor
+    var clangCursor: CXCursor {
+        if let backed = self as? ClangCursorBacked {
+            return backed.clang
+        }
+        return (self as! CXCursor)
     }
 }
 
 /// Compares two `Cursor`s and determines if they are equivalent.
 public func == (lhs: Cursor, rhs: Cursor) -> Bool {
-    return clang_equalCursors(lhs.asClang(), rhs.asClang()) != 0
+    return clang_equalCursors(lhs.clangCursor, rhs.clangCursor) != 0
 }
 
 extension Cursor {
     /// Retrieve a name for the entity referenced by this cursor.
     public var description: String {
-        return clang_getCursorSpelling(asClang()).asSwift()
+        return clang_getCursorSpelling(clangCursor).asSwift()
     }
 
     /// Retrieve a Unified Symbol Resolution (USR) for the entity referenced by
@@ -76,7 +81,7 @@ extension Cursor {
     /// references in one translation refer to an entity defined in another
     /// translation unit.
     public var usr: String {
-        return clang_getCursorUSR(asClang()).asSwift()
+        return clang_getCursorUSR(clangCursor).asSwift()
     }
 
     /// For a cursor that is either a reference to or a declaration of some
@@ -101,7 +106,7 @@ extension Cursor {
     /// because there is no definition of that entity within this translation
     /// unit, returns a `NULL` cursor.
     public var definition: Cursor? {
-        return convertCursor(clang_getCursorDefinition(asClang()))
+        return convertCursor(clang_getCursorDefinition(clangCursor))
     }
 
     /// Retrieve the display name for the entity referenced by this cursor.
@@ -109,7 +114,7 @@ extension Cursor {
     /// cursor, such as the parameters of a function or template or the
     /// arguments of a class template specialization.
     public var displayName: String {
-        return clang_getCursorDisplayName(asClang()).asSwift()
+        return clang_getCursorDisplayName(clangCursor).asSwift()
     }
 
     /// Determine the lexical parent of the given cursor.
@@ -141,7 +146,7 @@ extension Cursor {
     /// and the lexical context of the second `C::f` is the translation unit.
     /// For global declarations, the semantic parent is the translation unit.
     public var lexicalParent: Cursor? {
-        return convertCursor(clang_getCursorLexicalParent(asClang()))
+        return convertCursor(clang_getCursorLexicalParent(clangCursor))
     }
 
     /// Determine the semantic parent of the given cursor.
@@ -173,7 +178,7 @@ extension Cursor {
     /// and the lexical context of the second `C::f` is the translation unit.
     /// For global declarations, the semantic parent is the translation unit.
     public var semanticParent: Cursor? {
-        return convertCursor(clang_getCursorSemanticParent(asClang()))
+        return convertCursor(clang_getCursorSemanticParent(clangCursor))
     }
 
     /// For a cursor that is a reference, retrieve a cursor representing the
@@ -185,17 +190,17 @@ extension Cursor {
     /// declaration or definition, it returns that declaration or definition
     /// unchanged. Otherwise, returns the `NULL` cursor.
     public var referenced: Cursor? {
-        return convertCursor(clang_getCursorReferenced(asClang()))
+        return convertCursor(clang_getCursorReferenced(clangCursor))
     }
 
     /// Retrieves the type of this cursor (if any).
     public var type: CType? {
-        return convertType(clang_getCursorType(asClang()))
+        return convertType(clang_getCursorType(clangCursor))
     }
 
     /// Returns the translation unit that a cursor originated from.
     public var translationUnit: TranslationUnit {
-        guard let tu = clang_Cursor_getTranslationUnit(asClang()) else {
+        guard let tu = clang_Cursor_getTranslationUnit(clangCursor) else {
             preconditionFailure("Cursor must have an associated translation unit")
         }
         return TranslationUnit(clang: tu, owned: false)
@@ -206,7 +211,7 @@ extension Cursor {
     /// - returns: An array of `Cursors` that are children of this cursor.
     public func children() -> [Cursor] {
         var children = [Cursor]()
-        _ = clang_visitChildrenWithBlock(asClang()) { child, _ in
+        _ = clang_visitChildrenWithBlock(clangCursor) { child, _ in
             if let cursor = convertCursor(child) {
                 children.append(cursor)
             }
@@ -220,7 +225,7 @@ extension Cursor {
     /// visibility attribute. The default visibility may be changed by
     /// commandline arguments.
     public var visiblity: VisibilityKind? {
-        return VisibilityKind(clang: clang_getCursorVisibility(asClang()))
+        return VisibilityKind(clang: clang_getCursorVisibility(clangCursor))
     }
 
     /// Retrieve the physical extent of the source construct referenced by the
@@ -232,7 +237,7 @@ extension Cursor {
     /// the extent covers the location of the reference (e.g., where the
     /// referenced entity was actually used).
     public var range: SourceRange {
-        return SourceRange(clang: clang_getCursorExtent(asClang()))
+        return SourceRange(clang: clang_getCursorExtent(clangCursor))
     }
 
     /// Describes any availability information that specifies if the declaration
@@ -246,7 +251,7 @@ extension Cursor {
         var deprecatedMessage = CXString()
         var alwaysUnavailable: Int32 = 0
         var unavailableMessage = CXString()
-        let numPlatforms = clang_getCursorPlatformAvailability(asClang(),
+        let numPlatforms = clang_getCursorPlatformAvailability(clangCursor,
                                                                &alwaysDeprecated,
                                                                &deprecatedMessage,
                                                                &alwaysUnavailable,
@@ -270,7 +275,7 @@ extension Cursor {
 
     /// Returns the storage class for a function or variable declaration.
     public var storageClass: StorageClass? {
-        return StorageClass(clang: clang_Cursor_getStorageClass(asClang()))
+        return StorageClass(clang: clang_Cursor_getStorageClass(clangCursor))
     }
 
     /// Returns the access control level for the referenced object.
@@ -278,42 +283,42 @@ extension Cursor {
     /// within its parent scope is returned. Otherwise, if the cursor refers to
     /// a base specifier or access specifier, the specifier itself is returned.
     public var accessSpecifier: CXXAccessSpecifierKind? {
-        return CXXAccessSpecifierKind(clang: clang_getCXXAccessSpecifier(asClang()))
+        return CXXAccessSpecifierKind(clang: clang_getCXXAccessSpecifier(clangCursor))
     }
 
     /// Given a cursor that represents a documentable entity (e.g.,
     /// declaration), return the associated parsed comment
     public var fullComment: FullComment? {
-        return convertComment(clang_Cursor_getParsedComment(asClang())) as? FullComment
+        return convertComment(clang_Cursor_getParsedComment(clangCursor)) as? FullComment
     }
 
     /// Given a cursor that represents a declaration, return the associated
     /// comment text, including comment markers.
     public var rawComment: String? {
-        return clang_Cursor_getRawCommentText(asClang()).asSwiftOptional()
+        return clang_Cursor_getRawCommentText(clangCursor).asSwiftOptional()
     }
 
     /// Given a cursor that represents a documentable entity (e.g.,
     /// declaration), return the associated \brief paragraph; otherwise return
     /// the first paragraph.
     public var briefComment: String? {
-        return clang_Cursor_getBriefCommentText(asClang()).asSwiftOptional()
+        return clang_Cursor_getBriefCommentText(clangCursor).asSwiftOptional()
     }
 
     /// Determine the "language" of the entity referred to by a given cursor.
     public var language: Language? {
-        return Language(clang: clang_getCursorLanguage(asClang()))
+        return Language(clang: clang_getCursorLanguage(clangCursor))
     }
 
     /// Determine whether the declaration pointed to by this cursor
     /// is also a definition of that entity.
     public var isDefinition: Bool {
-        return clang_isCursorDefinition(asClang()) != 0
+        return clang_isCursorDefinition(clangCursor) != 0
     }
 
     /// Determine whether the given cursor represents a declaration.
     public var isDeclaration: Bool {
-        return clang_isDeclaration(asClang().kind) != 0
+        return clang_isDeclaration(clangCursor.kind) != 0
     }
 
     /// Determine whether the given cursor kind represents a simple reference.
@@ -321,56 +326,56 @@ extension Cursor {
     /// other cursors. Use clang_getCursorReferenced() to determine whether a
     /// particular cursor refers to another entity.
     public var isReference: Bool {
-        return clang_isReference(asClang().kind) != 0
+        return clang_isReference(clangCursor.kind) != 0
     }
 
     /// Determine whether the given cursor represents an expression.
     public var isExpression: Bool {
-        return clang_isExpression(asClang().kind) != 0
+        return clang_isExpression(clangCursor.kind) != 0
     }
 
     /// Determine whether the given cursor represents an attribute.
     public var isAttribute: Bool {
-        return clang_isAttribute(asClang().kind) != 0
+        return clang_isAttribute(clangCursor.kind) != 0
     }
 
     /// Determine whether the given cursor has any attributes.
     public var hasAttributes: Bool {
-        return clang_Cursor_hasAttrs(asClang()) != 0
+        return clang_Cursor_hasAttrs(clangCursor) != 0
     }
 
     /// Determine whether the given cursor represents a translation unit.
     public var isTranslationUnit: Bool {
-        return clang_isTranslationUnit(asClang().kind) != 0
+        return clang_isTranslationUnit(clangCursor.kind) != 0
     }
 
     /// Determine whether the given cursor represents an invalid cursor.
     public var isInvalid: Bool {
-        return clang_isInvalid(asClang().kind) != 0
+        return clang_isInvalid(clangCursor.kind) != 0
     }
 
     /// Determine whether the given cursor represents a preprocessing element,
     /// such as a preprocessor directive or macro instantiation.
     public var isPreprocessing: Bool {
-        return clang_isPreprocessing(asClang().kind) != 0
+        return clang_isPreprocessing(clangCursor.kind) != 0
     }
 
     /// Determine whether the given cursor represents a currently unexposed piece
     /// of the AST.
     public var isUnexposed: Bool {
-        return clang_isUnexposed(asClang().kind) != 0
+        return clang_isUnexposed(clangCursor.kind) != 0
     }
 
     /// Determine whether the given cursor is `nil` or not.
     public var isNull: Bool {
-        return clang_Cursor_isNull(asClang()) != 0
+        return clang_Cursor_isNull(clangCursor) != 0
     }
 
     /// If cursor is a statement declaration tries to evaluate the statement and
     /// if its variable, tries to evaluate its initializer, into its
     /// corresponding type.
     public func evaluate() -> EvalResult? {
-        guard let result = clang_Cursor_Evaluate(asClang()) else { return nil }
+        guard let result = clang_Cursor_Evaluate(clangCursor) else { return nil }
         return convertEvalResult(result)
     }
 
@@ -383,7 +388,7 @@ extension Cursor {
     ///         results.
     public func visitChildren(_ perCursorCallback: (Cursor) -> ChildVisitResult) {
         withoutActuallyEscaping(perCursorCallback) { callback in
-            _ = clang_visitChildrenWithBlock(asClang()) {
+            _ = clang_visitChildrenWithBlock(clangCursor) {
                 thisCursor, parentCursor -> CXChildVisitResult in
                 guard let cursor = convertCursor(thisCursor) else {
                     return CXChildVisit_Continue

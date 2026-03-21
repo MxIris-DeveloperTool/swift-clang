@@ -1,4 +1,4 @@
-import CclangWrapper
+internal import CclangWrapper
 
 /// Represents the errors that can be thrown by libclang.
 public enum ClangError: Error, Sendable {

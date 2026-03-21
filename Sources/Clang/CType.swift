@@ -1,9 +1,7 @@
-import CclangWrapper
+package import CclangWrapper
 
 /// The type of an element in the abstract syntax tree.
 public protocol CType: CustomStringConvertible {
-    /// Converts the receiver to a `CXType` to be consumed by the libclang APIs.
-    func asClang() -> CXType
 }
 
 public enum TypeLayoutError: Error, Sendable {
@@ -41,28 +39,36 @@ public enum TypeLayoutError: Error, Sendable {
 }
 
 /// Represents a CType that's backed by a CXType directly
-protocol ClangTypeBacked: CType {
+protocol ClangTypeBacked {
     var clang: CXType { get }
 }
 
 extension ClangTypeBacked {
-    /// Returns the underlying clang backing store
-    public func asClang() -> CXType {
+    func asClang() -> CXType {
         return clang
     }
 }
 
 extension CXType: @retroactive CustomStringConvertible {}
 extension CXType: CType {
-    /// Returns self, unmodified
-    public func asClang() -> CXType {
+    func asClang() -> CXType {
         return self
     }
 }
 
 /// Determines if two C types are equal to each other.
 public func == (lhs: CType, rhs: CType) -> Bool {
-    return clang_equalTypes(lhs.asClang(), rhs.asClang()) != 0
+    return clang_equalTypes(lhs.clangType, rhs.clangType) != 0
+}
+
+extension CType {
+    /// Internal accessor for the underlying CXType
+    var clangType: CXType {
+        if let backed = self as? ClangTypeBacked {
+            return backed.clang
+        }
+        return (self as! CXType)
+    }
 }
 
 extension CType {
@@ -74,7 +80,7 @@ extension CType {
     ///       incomplete type
     ///     - `TypeLayoutError.dependent` if the type declaration is dependent
     public func sizeOf() throws -> Int {
-        let val = clang_Type_getSizeOf(asClang())
+        let val = clang_Type_getSizeOf(clangType)
         if let error = TypeLayoutError(clang: CXTypeLayoutError(rawValue: Int32(val))) {
             throw error
         }
@@ -92,7 +98,7 @@ extension CType {
     ///     - `TypeLayoutError.nonConstantSize` if the type is not a constant
     ///       size
     public func alignOf() throws -> Int {
-        let val = clang_Type_getAlignOf(asClang())
+        let val = clang_Type_getAlignOf(clangType)
         if let error = TypeLayoutError(clang: CXTypeLayoutError(rawValue: Int32(val))) {
             throw error
         }
@@ -103,17 +109,17 @@ extension CType {
     /// translation unit from which it came.
     /// - note: If the type is invalid, an empty string is returned.
     public var description: String {
-        return clang_getTypeSpelling(asClang()).asSwift()
+        return clang_getTypeSpelling(clangType).asSwift()
     }
 
     /// Retrieves the cursor for the declaration of the receiver.
     public var declaration: Cursor? {
-        return convertCursor(clang_getTypeDeclaration(asClang()))
+        return convertCursor(clang_getTypeDeclaration(clangType))
     }
 
     /// Retrieves the Objective-C type encoding for the receiver.
     public var objcEncoding: String {
-        return clang_Type_getObjCEncoding(asClang()).asSwift()
+        return clang_Type_getObjCEncoding(clangType).asSwift()
     }
 
     /// Return the canonical type for a CType.
@@ -123,7 +129,7 @@ extension CType {
     /// 'int', the canonical type for 'T' would be 'int'.
     public var canonicalType: CType {
         get throws {
-            guard let type = convertType(clang_getCanonicalType(asClang())) else {
+            guard let type = convertType(clang_getCanonicalType(clangType)) else {
                 throw ClangError.unexpectedValue
             }
             return type
@@ -134,7 +140,26 @@ extension CType {
     /// The ref-qualifier is returned for C++ functions or methods. For other
     /// types or non-C++ declarations, nil is returned.
     public var cxxRefQualifier: RefQualifier? {
-        return RefQualifier(clang: clang_Type_getCXXRefQualifier(asClang()))
+        return RefQualifier(clang: clang_Type_getCXXRefQualifier(clangType))
+    }
+}
+
+extension CType {
+    /// Whether this type is an unsigned integer type.
+    public var isUnsignedIntegerType: Bool {
+        self is Char_UType || self is UCharType || self is UShortType ||
+        self is UIntType || self is ULongType || self is ULongLongType || self is UInt128Type
+    }
+
+    /// Whether this type is a signed integer type.
+    public var isSignedIntegerType: Bool {
+        self is Char_SType || self is SCharType || self is ShortType ||
+        self is IntType || self is LongType || self is LongLongType || self is Int128Type
+    }
+
+    /// Whether this type is an integer type (signed or unsigned).
+    public var isIntegerType: Bool {
+        isSignedIntegerType || isUnsignedIntegerType
     }
 }
 

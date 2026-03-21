@@ -1,34 +1,43 @@
-import CclangWrapper
+package import CclangWrapper
 
 /// A `Comment` is a parsed documentation comment in a C/C++/Objective-C source
 /// file.
 public protocol Comment {
+}
+
+protocol ClangCommentBacked {
     var clang: CXComment { get }
+}
+
+extension Comment {
+    var clangComment: CXComment {
+        (self as! ClangCommentBacked).clang
+    }
 }
 
 extension Comment {
     /// Retreives all children of this comment.
     public var children: AnyRandomAccessCollection<Comment?> {
-        let count = clang_Comment_getNumChildren(clang)
+        let count = clang_Comment_getNumChildren(clangComment)
         return AnyRandomAccessCollection(count: Int(count), indexingOperation: child)
     }
 
     /// - parameter index: The index of the child you're getting.
     /// - returns: The specified child of the AST node.
     public func child(at index: Int) -> Comment? {
-        return convertComment(clang_Comment_getChild(clang, UInt32(index)))
+        return convertComment(clang_Comment_getChild(clangComment, UInt32(index)))
     }
 
     /// The first child of this comment, if there are any children.
     public var firstChild: Comment? {
-        let count = clang_Comment_getNumChildren(clang)
+        let count = clang_Comment_getNumChildren(clangComment)
         if count == 0 { return nil }
-        return convertComment(clang_Comment_getChild(clang, 0))
+        return convertComment(clang_Comment_getChild(clangComment, 0))
     }
 }
 
-public struct FullComment: Comment {
-    public let clang: CXComment
+public struct FullComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// Convert a given full parsed comment to an HTML fragment.
     /// Specific details of HTML layout are subject to change. Don't try to parse
@@ -64,8 +73,8 @@ public struct FullComment: Comment {
 }
 
 /// A plain text comment.
-public struct TextComment: Comment {
-    public let clang: CXComment
+public struct TextComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// Retrieves the text contained in the AST node.
     public var text: String {
@@ -75,8 +84,8 @@ public struct TextComment: Comment {
 
 /// A command with word-like arguments that is considered inline content.
 /// For example: `\c command`
-public struct InlineCommandComment: Comment {
-    public let clang: CXComment
+public struct InlineCommandComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// Retrieves all arguments of this inline command.
     public var arguments: AnyRandomAccessCollection<String> {
@@ -107,8 +116,8 @@ public struct HTMLAttribute: Sendable {
 /// ```
 /// <a href="http://example.org/">
 /// ```
-public struct HTMLStartTagComment: Comment {
-    public let clang: CXComment
+public struct HTMLStartTagComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// Retrieves all attributes of this HTML start tag.
     public var attributes: AnyRandomAccessCollection<HTMLAttribute> {
@@ -126,13 +135,13 @@ public struct HTMLStartTagComment: Comment {
 /// ```
 /// </a>
 /// ```
-public struct HTMLEndTagComment: Comment {
-    public let clang: CXComment
+public struct HTMLEndTagComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 }
 
 /// A paragraph, contains inline comment. The paragraph itself is block content.
-public struct ParagraphComment: Comment {
-    public let clang: CXComment
+public struct ParagraphComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 }
 
 /// A command that has zero or more word-like arguments (number of word-like
@@ -142,8 +151,8 @@ public struct ParagraphComment: Comment {
 /// For example: `\brief` has 0 word-like arguments and a paragraph argument.
 /// AST nodes of special kinds that parser knows about (e. g., the `\param`
 /// command) have their own node kinds.
-public struct BlockCommandComment: Comment {
-    public let clang: CXComment
+public struct BlockCommandComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// Retrieves the name of this block command.
     public var name: String {
@@ -196,8 +205,8 @@ public enum ParamPassDirection: Sendable {
 /// ```
 /// \param [in] ParamName description.
 /// ```
-public struct ParamCommandComment: Comment {
-    public let clang: CXComment
+public struct ParamCommandComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// Retrieves the zero-based parameter index in the function prototype.
     public var index: Int {
@@ -239,8 +248,8 @@ public struct ParamCommandComment: Comment {
 /// ```
 /// \tparam T description.
 /// ```
-public struct TParamCommandComment: Comment {
-    public let clang: CXComment
+public struct TParamCommandComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// Determines the zero-based nesting depth of this parameter in the template
     /// parameter list.
@@ -265,8 +274,8 @@ public struct TParamCommandComment: Comment {
 ///   aaa
 /// \endverbatim
 /// ```
-public struct VerbatimBlockCommandComment: Comment {
-    public let clang: CXComment
+public struct VerbatimBlockCommandComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// Retrieves the name of this block command.
     public var name: String {
@@ -289,8 +298,8 @@ public struct VerbatimBlockCommandComment: Comment {
 
 /// A line of text that is contained within a `VerbatimBlockCommand`
 /// node.
-public struct VerbatimBlockLineComment: Comment {
-    public let clang: CXComment
+public struct VerbatimBlockLineComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// The text of this comment.
     public var text: String {
@@ -301,8 +310,8 @@ public struct VerbatimBlockLineComment: Comment {
 /// A verbatim line command. Verbatim line has an opening command, a single
 /// line of text (up to the newline after the opening command) and has no
 /// closing command.
-public struct VerbatimLineComment: Comment {
-    public let clang: CXComment
+public struct VerbatimLineComment: Comment, ClangCommentBacked {
+    package let clang: CXComment
 
     /// The text of this comment.
     public var text: String {

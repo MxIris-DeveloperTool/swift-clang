@@ -1,4 +1,4 @@
-import CclangWrapper
+internal import CclangWrapper
 
 import Foundation
 
@@ -7,7 +7,7 @@ import Foundation
 /// together to specify which options should be used when constructing the
 /// translation unit.
 public struct TranslationUnitOptions: OptionSet, Sendable {
-    public typealias RawValue = CXTranslationUnit_Flags.RawValue
+    public typealias RawValue = UInt32
     public let rawValue: RawValue
 
     /// Creates a new TranslationUnitOptions from a raw integer value.
@@ -108,7 +108,7 @@ public struct TranslationUnitOptions: OptionSet, Sendable {
 /// together to specify which options should be used when saving the translation
 /// unit.
 public struct TranslationUnitSaveOptions: OptionSet, Sendable {
-    public typealias RawValue = CXSaveTranslationUnit_Flags.RawValue
+    public typealias RawValue = UInt32
     public let rawValue: RawValue
 
     /// Creates a new TranslationUnitSaveOptions from a raw integer value.
@@ -309,7 +309,7 @@ public class TranslationUnit {
     ///                    within this source range.
     /// - returns: All tokens that fall within the provided source range in this
     ///            translation unit.
-    public func tokens(in range: SourceRange) -> [Token] {
+    package func tokens(in range: SourceRange) -> [Token] {
         var tokensPtrOpt: UnsafeMutablePointer<CXToken>?
         var numTokens: UInt32 = 0
         clang_tokenize(clang, range.clang, &tokensPtrOpt, &numTokens)
@@ -347,8 +347,8 @@ public class TranslationUnit {
     ///
     /// - parameter tokens: The set of tokens to annotate
     /// - returns: The cursors corresponding to each token provided
-    public func annotate(tokens: [Token]) -> [Cursor] {
-        var toks = tokens.map { $0.clang }
+    package func annotate(tokens: [Token]) -> [Cursor] {
+        var toks = tokens.map { $0.clangToken }
         let cursors =
             UnsafeMutablePointer<CXCursor>.allocate(capacity: toks.count)
         toks.withUnsafeMutableBufferPointer { buf in

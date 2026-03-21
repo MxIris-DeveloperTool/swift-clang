@@ -1,4 +1,4 @@
-import CclangWrapper
+internal import CclangWrapper
 
 /// Describes the severity of a particular diagnostic.
 public enum DiagnosticSeverity: Sendable {
@@ -60,7 +60,7 @@ public enum LoadDiagError: Error, Sendable {
 /// The values in this enum are meant to be combined to customize the
 /// behavior of `clang_formatDiagnostic().`
 public struct DiagnosticDisplayOptions: OptionSet, Sendable {
-    public typealias RawValue = CXDiagnosticDisplayOptions.RawValue
+    public typealias RawValue = UInt32
     public let rawValue: RawValue
     /// Creates a new DiagnosticDisplayOptions from a raw integer value.
     public init(rawValue: RawValue) {

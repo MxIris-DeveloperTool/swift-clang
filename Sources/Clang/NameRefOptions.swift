@@ -1,7 +1,7 @@
-import CclangWrapper
+internal import CclangWrapper
 
 public struct NameRefOptions: OptionSet, Sendable {
-    public typealias RawValue = CXNameRefFlags.RawValue
+    public typealias RawValue = UInt32
     public let rawValue: RawValue
 
     /// Creates a new NameRefOptions from a raw integer value.

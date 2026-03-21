@@ -1,4 +1,4 @@
-import CclangWrapper
+internal import CclangWrapper
 
 /// Describes the calling convention of a function type
 public enum CallingConvention {
@@ -45,7 +45,7 @@ public enum CallingConvention {
 
 /// Property attributes for an Objective-C @property declaration.
 public struct ObjCPropertyAttributes: OptionSet, Sendable {
-    public typealias RawValue = CXObjCPropertyAttrKind.RawValue
+    public typealias RawValue = UInt32
     public let rawValue: RawValue
 
     /// Creates a new ObjCPropertyAttributes from a raw integer value.

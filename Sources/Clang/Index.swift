@@ -1,4 +1,4 @@
-import CclangWrapper
+internal import CclangWrapper
 
 /// An index is a context in which translation units are created.
 public class Index {
@@ -47,7 +47,7 @@ public class Index {
 
 /// Global options used to inform the Index.
 public struct GlobalOptions: OptionSet, Sendable {
-    public typealias RawValue = CXGlobalOptFlags.RawValue
+    public typealias RawValue = UInt32
     public let rawValue: RawValue
 
     /// Creates a new GlobalOptions from a raw integer value.
@@ -81,7 +81,7 @@ public struct GlobalOptions: OptionSet, Sendable {
 
 /// Options for used for indexing actions.
 public struct IndexOptFlags: OptionSet, Sendable {
-    public typealias RawValue = CXIndexOptFlags.RawValue
+    public typealias RawValue = UInt32
     public let rawValue: RawValue
 
     /// Creates a new IndexOptFlags from a raw integer value.
