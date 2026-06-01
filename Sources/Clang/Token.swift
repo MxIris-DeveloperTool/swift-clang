@@ -117,8 +117,9 @@ public struct SourceLocation: Sendable {
     }
 
     /// Retrieves all file, line, column, and offset attributes of the provided
-    /// source location.
-    internal var locations: (file: File, line: Int, column: Int, offset: Int)? {
+    /// source location. Returns `nil` when the location does not correspond to
+    /// a real source file (e.g. command-line synthesized cursors).
+    public var fileLocation: (file: File, line: Int, column: Int, offset: Int)? {
         var l = 0 as UInt32
         var c = 0 as UInt32
         var o = 0 as UInt32
@@ -135,25 +136,27 @@ public struct SourceLocation: Sendable {
 
     /// The line to which the given source location points.
     public var line: Int {
-        return locations?.line ?? 0
+        return fileLocation?.line ?? 0
     }
 
     /// The column to which the given source location points.
     public var column: Int {
-        return locations?.column ?? 0
+        return fileLocation?.column ?? 0
     }
 
     /// The offset into the buffer to which the given source location points.
     public var offset: Int {
-        return locations?.offset ?? 0
+        return fileLocation?.offset ?? 0
     }
 
     /// The file to which the given source location points.
+    /// - note: Precondition-fails when the location does not correspond to a
+    ///         source file. Use `fileLocation?.file` for a safe accessor.
     public var file: File {
-        guard let locations else {
+        guard let fileLocation else {
             preconditionFailure("SourceLocation has no associated file")
         }
-        return locations.file
+        return fileLocation.file
     }
 
     /// Returns if the given source location is in the main file of
