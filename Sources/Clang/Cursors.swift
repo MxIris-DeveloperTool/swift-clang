@@ -4,28 +4,11 @@ internal import CclangWrapper
 
 internal protocol FunctionLikeDecl: ClangCursorBacked {}
 
-public struct FunctionDecl: Cursor, ClangCursorBacked {
+public struct FunctionDecl: Cursor, ClangCursorBacked, FunctionLikeCursor {
     let clang: CXCursor
 
     init(clang: CXCursor) {
         self.clang = clang
-    }
-
-    /// Retrieve the number of arguments of the function.
-    public var argumentCount: Int {
-        return Int(clang_Cursor_getNumArguments(clang))
-    }
-
-    /// Retrieve the argument cursor of a function or method.
-    /// The argument cursor can be determined for calls as well as for
-    /// declarations of functions or methods.
-    public func parameter(at index: Int) -> Cursor? {
-        return convertCursor(clang_Cursor_getArgument(clang, UInt32(index)))
-    }
-
-    /// Retrieve the return type of the function.
-    public var resultType: CType? {
-        return convertType(clang_getCursorResultType(clang))
     }
 
     /// Tells if the function declaration is inlined.
@@ -34,7 +17,50 @@ public struct FunctionDecl: Cursor, ClangCursorBacked {
     }
 }
 
-protocol MethodDecl: ClangCursorBacked {}
+/// Common protocol for cursor kinds that represent a callable function-like
+/// declaration (regular function, ObjC method, C++ method, ObjC message
+/// expression, function call expression).
+public protocol FunctionLikeCursor: Cursor {}
+
+extension FunctionLikeCursor {
+    /// Retrieve the number of arguments declared on this function-like cursor.
+    /// Returns 0 for cursors that do not have a parameter list.
+    public var argumentCount: Int {
+        return Int(clang_Cursor_getNumArguments(clangCursor))
+    }
+
+    /// Retrieve the parameter cursor at `index`, or `nil` when out of range.
+    public func parameter(at index: Int) -> Cursor? {
+        return convertCursor(clang_Cursor_getArgument(clangCursor, UInt32(index)))
+    }
+
+    /// All parameter cursors, in declaration order.
+    public var parameters: [Cursor] {
+        let count = argumentCount
+        var result: [Cursor] = []
+        result.reserveCapacity(count)
+        for index in 0..<count {
+            if let parameter = parameter(at: index) {
+                result.append(parameter)
+            }
+        }
+        return result
+    }
+
+    /// The return / result type of the function-like cursor, when available.
+    public var resultType: CType? {
+        return convertType(clang_getCursorResultType(clangCursor))
+    }
+
+    /// Whether the function-like cursor accepts a variadic argument list.
+    public var isVariadic: Bool {
+        return clang_Cursor_isVariadic(clangCursor) != 0
+    }
+}
+
+/// Common protocol for cursor kinds that represent ObjC or C++ method
+/// declarations.
+public protocol MethodDecl: FunctionLikeCursor {}
 extension MethodDecl {
     /// Determine the set of methods that are overridden by the given method.
     /// In both Objective-C and C++, a method (aka virtual member function, in
@@ -63,7 +89,7 @@ extension MethodDecl {
     public var overrides: [Cursor] {
         var overridden: UnsafeMutablePointer<CXCursor>?
         var overrideCount = 0 as UInt32
-        clang_getOverriddenCursors(clang, &overridden, &overrideCount)
+        clang_getOverriddenCursors(clangCursor, &overridden, &overrideCount)
         guard let overriddenPtr = overridden else { return [] }
         var overrides = [Cursor]()
         for i in 0 ..< Int(overrideCount) {
@@ -216,16 +242,67 @@ public struct ParmDecl: Cursor, ClangCursorBacked {
 /// An Objective-C @interface.
 public struct ObjCInterfaceDecl: Cursor, ClangCursorBacked {
     let clang: CXCursor
+
+    /// The superclass reference cursor, when this interface has a declared
+    /// superclass. Returns `nil` for root classes (e.g. `NSObject`).
+    public var superclassReference: ObjCSuperClassRef? {
+        firstChild(of: self)
+    }
+
+    /// Spelling of the superclass, when present (e.g. `"NSResponder"`).
+    public var superclassName: String? {
+        return superclassReference?.description
+    }
+
+    /// All protocols this interface conforms to, in source order.
+    public var conformedProtocolReferences: [ObjCProtocolRef] {
+        childrenOfType(of: self)
+    }
+
+    /// Spellings of all protocols this interface conforms to, in source order.
+    public var conformedProtocolNames: [String] {
+        return conformedProtocolReferences.map(\.description)
+    }
 }
 
 /// An Objective-C @interface for a category.
 public struct ObjCCategoryDecl: Cursor, ClangCursorBacked {
     let clang: CXCursor
+
+    /// The class the category extends, or `nil` if not resolvable.
+    public var declaringClassReference: ObjCClassRef? {
+        firstChild(of: self)
+    }
+
+    /// Spelling of the class the category extends, or `nil` when missing.
+    public var declaringClassName: String? {
+        return declaringClassReference?.description
+    }
+
+    /// The protocols this category brings in, in source order.
+    public var conformedProtocolReferences: [ObjCProtocolRef] {
+        childrenOfType(of: self)
+    }
+
+    /// Spellings of the protocols this category brings in, in source order.
+    public var conformedProtocolNames: [String] {
+        return conformedProtocolReferences.map(\.description)
+    }
 }
 
 /// An Objective-C @protocol declaration.
 public struct ObjCProtocolDecl: Cursor, ClangCursorBacked {
     let clang: CXCursor
+
+    /// Protocols this protocol inherits from, in source order.
+    public var inheritedProtocolReferences: [ObjCProtocolRef] {
+        childrenOfType(of: self)
+    }
+
+    /// Spellings of protocols this protocol inherits from, in source order.
+    public var inheritedProtocolNames: [String] {
+        return inheritedProtocolReferences.map(\.description)
+    }
 }
 
 /// An Objective-C @property declaration.
@@ -236,6 +313,28 @@ public struct ObjCPropertyDecl: Cursor, ClangCursorBacked {
         return ObjCPropertyAttributes(rawValue:
             clang_Cursor_getObjCPropertyAttributes(clang, 0))
     }
+
+    /// The custom getter selector (e.g. `isHidden`), when the property uses
+    /// `getter=`. Returns `nil` if the property uses the default getter.
+    public var customGetterName: String? {
+        guard attributes.contains(.getter) else { return nil }
+        let spelling = clang_Cursor_getObjCPropertyGetterName(clang).asSwift()
+        return spelling.isEmpty ? nil : spelling
+    }
+
+    /// The custom setter selector (e.g. `setHidden:`), when the property uses
+    /// `setter=`. Returns `nil` if the property uses the default setter.
+    public var customSetterName: String? {
+        guard attributes.contains(.setter) else { return nil }
+        let spelling = clang_Cursor_getObjCPropertySetterName(clang).asSwift()
+        return spelling.isEmpty ? nil : spelling
+    }
+
+    /// Raw bitmask of Objective-C-specific declaration qualifiers (`in`,
+    /// `inout`, `bycopy`, etc.). Returns 0 when none apply.
+    public var declQualifiers: UInt32 {
+        return clang_Cursor_getObjCDeclQualifiers(clang)
+    }
 }
 
 /// An Objective-C instance variable.
@@ -244,12 +343,12 @@ public struct ObjCIvarDecl: Cursor, ClangCursorBacked {
 }
 
 /// An Objective-C instance method.
-public struct ObjCInstanceMethodDecl: Cursor, ClangCursorBacked {
+public struct ObjCInstanceMethodDecl: Cursor, ClangCursorBacked, MethodDecl {
     let clang: CXCursor
 }
 
 /// An Objective-C class method.
-public struct ObjCClassMethodDecl: Cursor, ClangCursorBacked {
+public struct ObjCClassMethodDecl: Cursor, ClangCursorBacked, MethodDecl {
     let clang: CXCursor
 }
 
@@ -264,7 +363,7 @@ public struct ObjCCategoryImplDecl: Cursor, ClangCursorBacked {
 }
 
 /// A C++ class method.
-public struct CXXMethod: Cursor, ClangCursorBacked {
+public struct CXXMethod: Cursor, ClangCursorBacked, MethodDecl {
     let clang: CXCursor
 }
 
@@ -279,17 +378,17 @@ public struct LinkageSpec: Cursor, ClangCursorBacked {
 }
 
 /// A C++ constructor.
-public struct Constructor: Cursor, ClangCursorBacked {
+public struct Constructor: Cursor, ClangCursorBacked, MethodDecl {
     let clang: CXCursor
 }
 
 /// A C++ destructor.
-public struct Destructor: Cursor, ClangCursorBacked {
+public struct Destructor: Cursor, ClangCursorBacked, MethodDecl {
     let clang: CXCursor
 }
 
 /// A C++ conversion function.
-public struct ConversionFunction: Cursor, ClangCursorBacked {
+public struct ConversionFunction: Cursor, ClangCursorBacked, MethodDecl {
     let clang: CXCursor
 }
 
@@ -462,37 +561,13 @@ public struct MemberRefExpr: Cursor, ClangCursorBacked {
 }
 
 /// An expression that calls a function.
-public struct CallExpr: Cursor, ClangCursorBacked {
+public struct CallExpr: Cursor, ClangCursorBacked, FunctionLikeCursor {
     let clang: CXCursor
-
-    /// Retrieve the argument cursor of a function or method.
-    /// The argument cursor can be determined for calls as well as for
-    /// declarations of functions or methods.
-    public func parameter(at index: Int) -> Cursor? {
-        return convertCursor(clang_Cursor_getArgument(clang, UInt32(index)))
-    }
-
-    /// Retrieve the return type of the function.
-    public var resultType: CType? {
-        return convertType(clang_getCursorResultType(clang))
-    }
 }
 
 /// An expression that sends a message to an Objective-C object or class.
-public struct ObjCMessageExpr: Cursor, ClangCursorBacked {
+public struct ObjCMessageExpr: Cursor, ClangCursorBacked, FunctionLikeCursor {
     let clang: CXCursor
-
-    /// Retrieve the argument cursor of a function or method.
-    /// The argument cursor can be determined for calls as well as for
-    /// declarations of functions or methods.
-    public func parameter(at index: Int) -> Cursor? {
-        return convertCursor(clang_Cursor_getArgument(clang, UInt32(index)))
-    }
-
-    /// Retrieve the return type of the function.
-    public var resultType: CType? {
-        return convertType(clang_getCursorResultType(clang))
-    }
 }
 
 /// An expression that represents a block literal.
@@ -1898,4 +1973,32 @@ func convertCursor(_ clang: CXCursor) -> Cursor? {
     case CXCursor_WarnUnusedResultAttr: return WarnUnusedResultAttr(clang: clang)
     default: return nil
     }
+}
+
+
+// MARK: - Internal cursor walk helpers
+
+@inline(__always)
+internal func firstChild<Match: Cursor>(of parent: Cursor) -> Match? {
+    var found: Match?
+    parent.visitChildren { child in
+        if let typed = child as? Match {
+            found = typed
+            return .abort
+        }
+        return .continue
+    }
+    return found
+}
+
+@inline(__always)
+internal func childrenOfType<Match: Cursor>(of parent: Cursor) -> [Match] {
+    var matches: [Match] = []
+    parent.visitChildren { child in
+        if let typed = child as? Match {
+            matches.append(typed)
+        }
+        return .continue
+    }
+    return matches
 }
